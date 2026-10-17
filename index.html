@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Atelier d'oreille & lecture</title>
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Solfège" />
+<meta name="theme-color" content="#2b3a32" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Mono:wght@400;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+<style>
+:root{
+  --bg:#2b3a32;
+  --bg-soft:#33453c;
+  --bg-card:#384b41;
+  --ink:#f4f0e4;
+  --ink-dim:rgba(244,240,228,0.58);
+  --gold:#dba85f;
+  --gold-ink:#2b2410;
+  --green:#9cc77e;
+  --red:#e08a76;
+  --line:rgba(244,240,228,0.20);
+  --key-white:#f8f5ed;
+  --key-white-shadow:#d2cabb;
+  --key-black:#1f1e1c;
+  --radius:10px;
+  --font-display:'Fraunces', serif;
+  --font-body:'Work Sans', sans-serif;
+  --font-mono:'Space Mono', monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;}
+body{
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,255,255,0.05), transparent 60%),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.page{max-width:640px;margin:0 auto;padding:32px 20px 60px;}
+
+/* ---------- header ---------- */
+header{margin-bottom:22px;}
+.eyebrow{
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:0.22em;
+  text-transform:uppercase;
+  color:var(--gold);
+  margin:0 0 10px;
+}
+h1{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:clamp(28px,7.5vw,42px);
+  margin:0 0 10px;
+  letter-spacing:0.005em;
+}
+.subtitle{color:var(--ink-dim); margin:0; font-size:14.5px; max-width:50ch;}
+
+/* ---------- cards ---------- */
+.card{
+  background:var(--bg-card);
+  border:1px dashed var(--line);
+  border-radius:var(--radius);
+  padding:18px 20px;
+  margin-bottom:16px;
+}
+.card h2{
+  font-family:var(--font-display);
+  font-size:17px;
+  font-weight:600;
+  margin:0 0 14px;
+  color:var(--ink);
+}
+
+/* ---------- mode switch ---------- */
+.mode-switch{display:flex; gap:8px; flex-wrap:wrap;}
+.mode-pill{
+  flex:1 1 auto;
+  font-family:var(--font-body);
+  font-weight:600;
+  font-size:13.5px;
+  padding:11px 12px;
+  border:1.5px solid var(--line);
+  background:var(--bg-soft);
+  color:var(--ink-dim);
+  border-radius:8px;
+  cursor:pointer;
+  transition:all .15s ease;
+  white-space:nowrap;
+}
+.mode-pill:hover{color:var(--ink); border-color:var(--ink-dim);}
+.mode-pill.active{
+  background:var(--gold); color:var(--gold-ink); border-color:var(--gold);
+}
+
+/* ---------- howto ---------- */
+.howto{
+  font-size:13.5px;
+  color:var(--ink-dim);
+  margin:0;
+  padding-left:0;
+  list-style:none;
+  counter-reset:step;
+}
+.howto li{
+  counter-increment:step;
+  margin-bottom:4px;
+  padding-left:24px;
+  position:relative;
+}
+.howto li::before{
+  content:counter(step);
+  position:absolute; left:0; top:0;
+  width:16px; height:16px;
+  border:1px solid var(--gold);
+  color:var(--gold);
+  border-radius:50%;
+  font-family:var(--font-mono);
+  font-size:10px;
+  display:flex; align-items:center; justify-content:center;
+  line-height:1;
+}
+
+/* ---------- settings ---------- */
+.setting-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px 20px;}
+@media(max-width:480px){.setting-grid{grid-template-columns:1fr;}}
+label{display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--ink-dim);}
+select{
+  font-family:var(--font-mono);
+  background:var(--bg-soft);
+  color:var(--ink);
+  border:1px solid var(--line);
+  border-radius:6px;
+  padding:9px 10px;
+  font-size:13px;
+}
+select:disabled{opacity:0.5;}
+label.checkbox{flex-direction:row; align-items:center; gap:9px; font-size:13px; grid-column:1 / -1;}
+label.checkbox input{accent-color:var(--gold); width:16px; height:16px; flex-shrink:0;}
+
+/* ---------- play row ---------- */
+.play-row{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+.btn{
+  font-family:var(--font-mono);
+  font-size:12.5px;
+  letter-spacing:0.02em;
+  border:1.5px solid var(--ink);
+  background:transparent;
+  color:var(--ink);
+  padding:10px 16px;
+  border-radius:6px;
+  cursor:pointer;
+  transition:transform .08s ease, background .15s ease, opacity .15s ease;
+  white-space:nowrap;
+}
+.btn:hover:not(:disabled){background:rgba(244,240,228,0.08);}
+.btn:active:not(:disabled){transform:scale(0.97);}
+.btn:disabled{opacity:0.32; cursor:not-allowed;}
+.btn.primary{background:var(--gold); border-color:var(--gold); color:var(--gold-ink); font-weight:700;}
+.btn.primary:hover:not(:disabled){background:#e6bb7e;}
+.btn.ghost{border-style:dashed;}
+.btn.large{padding:13px 22px; font-size:13.5px;}
+.btn.small{padding:6px 12px; font-size:11.5px;}
+.score{
+  margin-left:auto;
+  font-family:var(--font-mono);
+  text-align:right;
+  font-size:11.5px;
+  color:var(--ink-dim);
+  line-height:1.4;
+}
+.score-value{display:block; font-size:17px; color:var(--gold); font-weight:700;}
+.score-reset{font-size:11px; color:var(--ink-dim); text-decoration:underline; cursor:pointer;
+  background:none; border:none; font-family:var(--font-mono); padding:0; margin-top:2px;}
+.score-reset:hover{color:var(--ink);}
+.audio-status{font-size:11.5px; color:var(--ink-dim); font-family:var(--font-mono); font-style:italic;}
+
+/* ---------- staff ---------- */
+.staff-card{text-align:center;}
+.staff-svg{width:100%; max-width:600px; height:auto; display:block; margin:0 auto;}
+.staff-line{stroke:var(--ink-dim); stroke-width:1;}
+.ledger-line{stroke:var(--ink-dim); stroke-width:1;}
+.clef{fill:var(--ink); font-family:'Noto Music','Bravura','Segoe UI Symbol',var(--font-display);}
+.notehead.pending{fill:var(--ink-dim);}
+.notehead.toread{fill:var(--ink);}
+.notehead.reference{fill:var(--gold);}
+.notehead.correct{fill:var(--green);}
+.notehead.incorrect{fill:var(--red);}
+.accidental{font-family:var(--font-body); font-size:15px;}
+.accidental.toread{fill:var(--ink);}
+.accidental.reference{fill:var(--gold);}
+.accidental.correct{fill:var(--green);}
+.accidental.incorrect{fill:var(--red);}
+.note-label{font-family:var(--font-mono); font-size:9.5px; fill:var(--ink-dim); text-anchor:middle;}
+.placeholder-q{font-family:var(--font-display); font-size:22px; font-weight:600; fill:var(--ink-dim); text-anchor:middle;}
+.staff-caption{font-size:12.5px; color:var(--ink-dim); margin:12px 0 0;}
+
+/* ---------- answer ---------- */
+.answer-hint{font-size:12px; color:var(--ink-dim); font-family:var(--font-mono); margin:0 0 12px;}
+.answer-slots{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;}
+.slot{
+  min-width:56px; height:42px;
+  display:flex; align-items:center; justify-content:center;
+  border:1.5px solid var(--line);
+  border-radius:6px;
+  font-family:var(--font-mono);
+  font-size:13px;
+  color:var(--ink-dim);
+  background:var(--bg-soft);
+}
+.slot.filled{color:var(--ink); border-color:var(--gold); background:rgba(219,168,95,0.12);}
+.answer-actions{display:flex; gap:8px;}
+
+/* ---------- keyboard ---------- */
+.keyboard-wrap{overflow-x:auto; padding-bottom:4px;}
+.keyboard{position:relative; height:128px; margin:0 auto;}
+.keyboard.loading{opacity:0.45; pointer-events:none;}
+.key{
+  position:absolute; top:0;
+  border:1px solid rgba(0,0,0,0.28);
+  border-radius:0 0 5px 5px;
+  cursor:pointer;
+  display:flex; align-items:flex-end; justify-content:center;
+  user-select:none;
+  transition:filter .05s;
+}
+.key.white{height:128px; background:var(--key-white); box-shadow: inset 0 -8px 10px -6px var(--key-white-shadow); z-index:1;}
+.key.black{height:80px; background:var(--key-black); z-index:2;}
+.key.flash{filter:brightness(0.82);}
+.key.selected.white{background:rgba(219,168,95,0.55);}
+.key.selected.black{background:#7a5a26;}
+.key-label{font-family:var(--font-mono); font-size:9px; color:#9a9486; margin-bottom:6px; pointer-events:none;}
+.key.black .key-label{color:#cfcfcf;}
+.keyboard:not(.show-labels) .key-label{display:none;}
+.key .order-badge{
+  position:absolute; top:6px; left:50%; transform:translateX(-50%);
+  background:var(--gold); color:var(--gold-ink); font-family:var(--font-mono);
+  font-size:10px; font-weight:700; border-radius:50%; width:18px; height:18px;
+  display:flex; align-items:center; justify-content:center; pointer-events:none;
+}
+.key.black .order-badge{top:4px;}
+.scroll-hint{font-size:11.5px; color:var(--ink-dim); margin:8px 0 0; text-align:center;}
+
+/* ---------- validate row ---------- */
+.validate-row{display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+
+/* ---------- feedback ---------- */
+.feedback-list{list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;}
+.feedback-list li{display:flex; align-items:center; gap:10px; font-size:13.5px; font-family:var(--font-mono);}
+.feedback-icon{font-size:15px; width:18px; text-align:center;}
+.feedback-correct{color:var(--green);}
+.feedback-incorrect{color:var(--red);}
+.feedback-summary{font-family:var(--font-mono); font-size:13px; color:var(--ink-dim);
+  margin:14px 0 0; padding-top:12px; border-top:1px dashed var(--line);}
+
+footer{color:var(--ink-dim); font-size:11.5px; text-align:center; margin-top:28px;}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <p class="eyebrow">Atelier d'oreille — solfège au piano</p>
+    <h1>Oreille & lecture</h1>
+    <p class="subtitle">Trois exercices : reconnaître une mélodie, un accord de 3 notes, ou lire une suite de notes en clef de fa.</p>
+  </header>
+
+  <section class="card">
+    <div class="mode-switch" id="modeSwitch">
+      <button class="mode-pill active" data-mode="melody">Mélodie</button>
+      <button class="mode-pill" data-mode="chord">Accords</button>
+      <button class="mode-pill" data-mode="bass">Lecture · clef de fa</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <ol class="howto" id="howto"></ol>
+  </section>
+
+  <section class="card">
+    <h2>Réglages</h2>
+    <div class="setting-grid">
+      <label>Nombre de notes
+        <select id="numNotes"></select>
+      </label>
+      <label>Étendue du clavier
+        <select id="range"></select>
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" id="accidentals" />
+        Inclure les notes altérées (♯)
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" id="referenceToggle" />
+        Jouer une note de repère (Do central) avant l'exercice
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" id="showLabels" checked />
+        Afficher le nom des notes sur le clavier
+      </label>
+    </div>
+  </section>
+
+  <section class="play-row">
+    <button id="playBtn" class="btn primary">▶ Jouer</button>
+    <button id="refBtn" class="btn ghost">🎵 Repère (Do4)</button>
+    <span id="audioStatus" class="audio-status">🎹 Chargement du son de piano…</span>
+    <div class="score">
+      Score
+      <span class="score-value" id="scoreValue">0 / 0</span>
+      <span id="perfectValue">Exercices parfaits : 0 / 0</span><br/>
+      <button class="score-reset" id="scoreReset">réinitialiser le score</button>
+    </div>
+  </section>
+
+  <section class="card staff-card">
+    <div id="staffContainer"></div>
+    <p class="staff-caption" id="staffCaption"></p>
+  </section>
+
+  <section class="card">
+    <h2>Ta réponse</h2>
+    <p class="answer-hint" id="answerHint" hidden></p>
+    <div class="answer-slots" id="answerSlots"></div>
+    <div class="answer-actions">
+      <button id="undoBtn" class="btn small ghost">⌫ Effacer la dernière</button>
+      <button id="clearBtn" class="btn small ghost">Tout effacer</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="keyboard-wrap">
+      <div id="keyboard" class="keyboard show-labels loading"></div>
+    </div>
+    <p class="scroll-hint" id="scrollHint" hidden>Fais défiler horizontalement pour voir tout le clavier →</p>
+  </section>
+
+  <section class="validate-row">
+    <button id="validateBtn" class="btn primary large" disabled>Valider ma réponse</button>
+    <button id="newBtn" class="btn large">Nouvel exercice →</button>
+  </section>
+
+  <section class="card" id="feedbackCard" hidden>
+    <h2>Résultat</h2>
+    <ul class="feedback-list" id="feedbackList"></ul>
+    <p class="feedback-summary" id="feedbackSummary"></p>
+  </section>
+
+  <footer>Astuce : clique sur les touches à tout moment pour entendre leur son.</footer>
+</div>
+
+<script>
+// ---------------------------------------------------------------
+// Constantes musicales
+// ---------------------------------------------------------------
+const NOTE_NAMES_TONE = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const NOTE_NAMES_FR   = ['Do','Do♯','Ré','Ré♯','Mi','Fa','Fa♯','Sol','Sol♯','La','La♯','Si'];
+const LETTER_BY_PC    = ['C','C','D','D','E','F','F','G','G','A','A','B'];
+const LETTER_INDEX    = {C:0,D:1,E:2,F:3,G:4,A:5,B:6};
+const SHARP_PCS       = [1,3,6,8,10];
+const isSharpPc       = pc => SHARP_PCS.includes(pc);
+const REFERENCE_MIDI  = 60; // Do4
+
+const RANGES = {
+  treble:{
+    oneOctave:{min:60,max:72}, twoOctaves:{min:48,max:72}, threeOctaves:{min:48,max:84}
+  },
+  bass:{
+    oneOctave:{min:48,max:60}, twoOctaves:{min:36,max:60}, threeOctaves:{min:24,max:60}
+  }
+};
+const RANGE_LABELS = {
+  treble:{oneOctave:'Une octave (Do4 → Do5)', twoOctaves:'Deux octaves (Do3 → Do5)', threeOctaves:'Trois octaves (Do3 → Do6)'},
+  bass:{oneOctave:'Une octave (Do3 → Do4)', twoOctaves:'Deux octaves (Do2 → Do4)', threeOctaves:'Trois octaves (Do1 → Do4)'}
+};
+const CLEF_OF = {melody:'treble', chord:'treble', bass:'bass'};
+
+function midiToTone(midi){ const pc=midi%12, oct=Math.floor(midi/12)-1; return NOTE_NAMES_TONE[pc]+oct; }
+function midiToFR(midi){ if(midi==null) return '?'; const pc=midi%12, oct=Math.floor(midi/12)-1; return NOTE_NAMES_FR[pc]+oct; }
+function diatonicStep(midi){ const pc=midi%12, oct=Math.floor(midi/12)-1; return LETTER_INDEX[LETTER_BY_PC[pc]] + 7*oct; }
+// k : 0 = ligne du haut, 4 = ligne du bas ; offset 38 (sol), 26 (fa)
+function staffK(midi, offset){ return (offset - diatonicStep(midi)) / 2; }
+
+// ---------------------------------------------------------------
+// Audio (piano échantillonné + repli synthé)
+// ---------------------------------------------------------------
+let sampler=null, fallbackSynth=null, audioReady=false, audioFailed=false;
+function ensureFallbackSynth(){
+  if(!fallbackSynth){
+    fallbackSynth = new Tone.PolySynth(Tone.Synth,{
+      oscillator:{type:'triangle'}, envelope:{attack:0.004,decay:1.0,sustain:0.05,release:0.5}
+    }).toDestination();
+  }
+}
+function setAudioStatus(loading,failed){
+  const el=document.getElementById('audioStatus');
+  if(loading){ el.textContent='🎹 Chargement du son de piano…'; el.hidden=false; els.keyboard.classList.add('loading'); }
+  else if(failed){ el.textContent='🎹 Son simplifié (échantillons indisponibles)'; el.hidden=false; els.keyboard.classList.remove('loading'); }
+  else { el.hidden=true; els.keyboard.classList.remove('loading'); }
+}
+function initAudio(){
+  sampler = new Tone.Sampler({
+    urls:{
+      'A0':'A0.mp3','C1':'C1.mp3','D#1':'Ds1.mp3','F#1':'Fs1.mp3','A1':'A1.mp3',
+      'C2':'C2.mp3','D#2':'Ds2.mp3','F#2':'Fs2.mp3','A2':'A2.mp3',
+      'C3':'C3.mp3','D#3':'Ds3.mp3','F#3':'Fs3.mp3','A3':'A3.mp3',
+      'C4':'C4.mp3','D#4':'Ds4.mp3','F#4':'Fs4.mp3','A4':'A4.mp3',
+      'C5':'C5.mp3','D#5':'Ds5.mp3','F#5':'Fs5.mp3','A5':'A5.mp3',
+      'C6':'C6.mp3','D#6':'Ds6.mp3','F#6':'Fs6.mp3','A6':'A6.mp3',
+      'C7':'C7.mp3','D#7':'Ds7.mp3','F#7':'Fs7.mp3','A7':'A7.mp3','C8':'C8.mp3'
+    },
+    release:1, baseUrl:'https://tonejs.github.io/audio/salamander/',
+    onload:()=>{ audioReady=true; setAudioStatus(false,false); },
+    onerror:()=>{ audioFailed=true; audioReady=true; ensureFallbackSynth(); setAudioStatus(false,true); }
+  }).toDestination();
+}
+function getInstrument(){ if(sampler && !audioFailed) return sampler; ensureFallbackSynth(); return fallbackSynth; }
+
+async function playSingle(midi,dur=0.7){ await Tone.start(); getInstrument().triggerAttackRelease(midiToTone(midi),dur); }
+
+async function playCurrent(){
+  await Tone.start();
+  const inst=getInstrument();
+  let t=Tone.now();
+  const refPause=0.6;
+  if(els.referenceToggle.checked){
+    inst.triggerAttackRelease(midiToTone(REFERENCE_MIDI),1.0,t);
+    t += 1.0 + refPause;
+  }
+  if(state.mode==='chord'){
+    inst.triggerAttackRelease(currentSequence.map(midiToTone), 1.6, t);
+  } else {
+    const noteDur=0.9, gap=0.35;
+    currentSequence.forEach(m=>{ inst.triggerAttackRelease(midiToTone(m),noteDur,t); t += noteDur+gap; });
+  }
+}
+
+// ---------------------------------------------------------------
+// État
+// ---------------------------------------------------------------
+const state = { mode:'melody' };
+let currentSequence=[], userAnswer=[], validated=false;
+let totalNotes=0, correctNotes=0, totalDictations=0, perfectDictations=0;
+
+const els = {
+  modeSwitch:document.getElementById('modeSwitch'),
+  howto:document.getElementById('howto'),
+  numNotes:document.getElementById('numNotes'),
+  range:document.getElementById('range'),
+  accidentals:document.getElementById('accidentals'),
+  referenceToggle:document.getElementById('referenceToggle'),
+  showLabels:document.getElementById('showLabels'),
+  playBtn:document.getElementById('playBtn'),
+  refBtn:document.getElementById('refBtn'),
+  validateBtn:document.getElementById('validateBtn'),
+  newBtn:document.getElementById('newBtn'),
+  undoBtn:document.getElementById('undoBtn'),
+  clearBtn:document.getElementById('clearBtn'),
+  keyboard:document.getElementById('keyboard'),
+  answerHint:document.getElementById('answerHint'),
+  answerSlots:document.getElementById('answerSlots'),
+  staffContainer:document.getElementById('staffContainer'),
+  staffCaption:document.getElementById('staffCaption'),
+  feedbackCard:document.getElementById('feedbackCard'),
+  feedbackList:document.getElementById('feedbackList'),
+  feedbackSummary:document.getElementById('feedbackSummary'),
+  scoreValue:document.getElementById('scoreValue'),
+  perfectValue:document.getElementById('perfectValue'),
+  scoreReset:document.getElementById('scoreReset'),
+  scrollHint:document.getElementById('scrollHint'),
+};
+
+function clef(){ return CLEF_OF[state.mode]; }
+function requiredCount(){ return state.mode==='chord' ? 3 : parseInt(els.numNotes.value,10); }
+
+// ---------------------------------------------------------------
+// Textes selon le mode
+// ---------------------------------------------------------------
+const HOWTO = {
+  melody:[
+    'Choisis tes réglages, puis clique sur « Jouer ».',
+    'Clique sur les touches du clavier pour deviner les notes entendues, dans l\'ordre.',
+    'Clique sur « Valider » pour révéler la portée et voir ton score.'
+  ],
+  chord:[
+    'Clique sur « Jouer » : les 3 notes de l\'accord sonnent en même temps.',
+    'Retrouve les 3 notes sur le clavier (l\'ordre n\'a pas d\'importance).',
+    'Clique sur « Valider » pour révéler l\'accord et voir ton score.'
+  ],
+  bass:[
+    'Une courte suite de notes s\'affiche en clef de fa.',
+    'Lis-les et joue-les sur le clavier, dans l\'ordre. Le son reste caché.',
+    'Clique sur « Valider » : les bonnes notes se colorent et tu peux les écouter.'
+  ]
+};
+function renderHowto(){ els.howto.innerHTML = HOWTO[state.mode].map(t=>`<li>${t}</li>`).join(''); }
+
+// ---------------------------------------------------------------
+// Sélecteurs adaptés au mode
+// ---------------------------------------------------------------
+function populateSelectors(){
+  // nombre de notes
+  let opts='';
+  if(state.mode==='chord'){
+    opts = '<option value="3">3 notes (accord)</option>';
+    els.numNotes.innerHTML=opts; els.numNotes.value='3'; els.numNotes.disabled=true;
+  } else if(state.mode==='bass'){
+    [4,8,12,16,20].forEach(i=> opts += `<option value="${i}">${i} notes</option>`);
+    els.numNotes.innerHTML=opts; els.numNotes.disabled=false; els.numNotes.value='20';
+  } else {
+    for(let i=1;i<=4;i++) opts += `<option value="${i}">${i} note${i>1?'s':''}</option>`;
+    els.numNotes.innerHTML=opts; els.numNotes.disabled=false; els.numNotes.value='3';
+  }
+  // étendue
+  const c=clef();
+  els.range.innerHTML = Object.keys(RANGES[c])
+    .map(k=>`<option value="${k}">${RANGE_LABELS[c][k]}</option>`).join('');
+  els.range.value='oneOctave';
+}
+
+// ---------------------------------------------------------------
+// Clavier
+// ---------------------------------------------------------------
+function buildKeyboard(){
+  const {min,max}=RANGES[clef()][els.range.value];
+  const whites=[];
+  for(let m=min;m<=max;m++){ if(!isSharpPc(m%12)) whites.push(m); }
+  let W=44; if(whites.length>8 && whites.length<=15) W=32; else if(whites.length>15) W=24;
+  const BW=Math.round(W*0.62);
+  els.scrollHint.hidden = whites.length<=8;
+  els.keyboard.innerHTML=''; els.keyboard.style.width=(whites.length*W)+'px';
+  whites.forEach((m,i)=>{
+    const key=document.createElement('div');
+    key.className='key white'; key.style.left=(i*W)+'px'; key.style.width=W+'px'; key.dataset.midi=m;
+    const label=document.createElement('span'); label.className='key-label'; label.textContent=midiToFR(m);
+    key.appendChild(label); els.keyboard.appendChild(key);
+    const pc=m%12;
+    if(pc!==4 && pc!==11){
+      const bm=m+1;
+      if(bm<=max){
+        const bkey=document.createElement('div');
+        bkey.className='key black'; bkey.style.left=((i+1)*W-BW/2)+'px'; bkey.style.width=BW+'px'; bkey.dataset.midi=bm;
+        els.keyboard.appendChild(bkey);
+      }
+    }
+  });
+}
+
+els.keyboard.addEventListener('click', e=>{
+  const key=e.target.closest('.key'); if(!key) return;
+  const midi=parseInt(key.dataset.midi,10);
+  key.classList.add('flash'); setTimeout(()=>key.classList.remove('flash'),120);
+  playSingle(midi);
+  if(validated) return;
+
+  if(state.mode==='chord'){
+    const idx=userAnswer.indexOf(midi);
+    if(idx>=0) userAnswer.splice(idx,1);
+    else if(userAnswer.length<3) userAnswer.push(midi);
+  } else {
+    if(userAnswer.length>=requiredCount()) return;
+    userAnswer.push(midi);
+  }
+  renderAnswerSlots(); renderKeyboardState(); updateValidateButton();
+});
+
+function renderKeyboardState(){
+  els.keyboard.querySelectorAll('.order-badge').forEach(b=>b.remove());
+  els.keyboard.querySelectorAll('.key.selected').forEach(k=>k.classList.remove('selected'));
+  userAnswer.forEach((midi,i)=>{
+    const key=els.keyboard.querySelector(`.key[data-midi="${midi}"]`); if(!key) return;
+    key.classList.add('selected');
+    const badge=document.createElement('div'); badge.className='order-badge';
+    badge.textContent = state.mode==='chord' ? '●' : (i+1);
+    key.appendChild(badge);
+  });
+}
+
+// ---------------------------------------------------------------
+// Réponse (slots)
+// ---------------------------------------------------------------
+function renderAnswerSlots(){
+  const n=requiredCount();
+  els.answerSlots.innerHTML='';
+  for(let i=0;i<n;i++){
+    const slot=document.createElement('div');
+    if(userAnswer[i]!==undefined){ slot.className='slot filled'; slot.textContent=midiToFR(userAnswer[i]); }
+    else { slot.className='slot'; slot.textContent=(state.mode==='chord'?'●':(i+1)); }
+    els.answerSlots.appendChild(slot);
+  }
+}
+function updateValidateButton(){
+  els.validateBtn.disabled = (userAnswer.length!==requiredCount()) || validated || currentSequence.length===0;
+}
+els.undoBtn.addEventListener('click',()=>{
+  if(validated || userAnswer.length===0) return;
+  userAnswer.pop(); renderAnswerSlots(); renderKeyboardState(); updateValidateButton();
+});
+els.clearBtn.addEventListener('click',()=>{
+  if(validated) return;
+  userAnswer=[]; renderAnswerSlots(); renderKeyboardState(); updateValidateButton();
+});
+
+// ---------------------------------------------------------------
+// Portée (SVG)
+// ---------------------------------------------------------------
+function drawColumn(col, x, baseY, G, offset){
+  let body='';
+  const notes=[...col.notes];
+  if(notes.length===1 && notes[0].status==='pending'){
+    body+=`<text x="${x}" y="${baseY+2*G+6}" class="placeholder-q">?</text>`;
+  } else {
+    notes.sort((a,b)=>a.midi-b.midi);
+    let prevK=null, prevOffset=false;
+    notes.forEach(n=>{
+      const k=staffK(n.midi,offset);
+      let dx=0;
+      if(prevK!==null && Math.abs(k-prevK)<=0.6 && !prevOffset){ dx=13; prevOffset=true; } else prevOffset=false;
+      prevK=k;
+      const nx=x+dx, y=baseY+k*G;
+      if(k>4){ const cnt=Math.floor(k)-4; for(let j=1;j<=cnt;j++){ const ly=baseY+(4+j)*G; body+=`<line x1="${nx-11}" y1="${ly}" x2="${nx+11}" y2="${ly}" class="ledger-line"/>`; } }
+      else if(k<0){ const cnt=Math.floor(-k); for(let j=1;j<=cnt;j++){ const ly=baseY-j*G; body+=`<line x1="${nx-11}" y1="${ly}" x2="${nx+11}" y2="${ly}" class="ledger-line"/>`; } }
+      if(isSharpPc(n.midi%12)) body+=`<text x="${nx-16}" y="${y+5}" class="accidental ${n.status}">♯</text>`;
+      body+=`<ellipse cx="${nx}" cy="${y}" rx="6.5" ry="5" class="notehead ${n.status}" transform="rotate(-18 ${nx} ${y})"/>`;
+    });
+  }
+  return body;
+}
+
+function buildStaffSVG(cols, cl){
+  const G=14, colW=52, lead=90, trail=22, ROWMAX=10, labelGap=22, notePad=8;
+  const offset = cl==='bass' ? 26 : 38;
+
+  const rows = Math.max(1, Math.ceil(cols.length/ROWMAX));
+  const perRow = Math.ceil(cols.length/rows);
+  const chunks=[];
+  for(let i=0;i<cols.length;i+=perRow) chunks.push(cols.slice(i,i+perRow));
+  const width = lead + perRow*colW + trail;
+
+  let body='', y=6;
+  chunks.forEach(chunk=>{
+    // extrêmes verticaux de la ligne, pour dimensionner la place au-dessus/dessous
+    let kMin=0, kMax=4;
+    chunk.forEach(col=>col.notes.forEach(n=>{
+      if(n.midi==null) return;
+      const k=staffK(n.midi,offset);
+      if(k<kMin) kMin=k; if(k>kMax) kMax=k;
+    }));
+    const above = Math.max(0,-kMin)*G + notePad;
+    const below = Math.max(0,kMax-4)*G + notePad;
+    const staffTop = y + above;
+
+    for(let i=0;i<5;i++){ const ly=staffTop+i*G; body+=`<line x1="8" y1="${ly}" x2="${width-8}" y2="${ly}" class="staff-line"/>`; }
+    if(cl==='bass') body+=`<text x="14" y="${staffTop+3*G+3}" class="clef" style="font-size:40px">𝄢</text>`;
+    else body+=`<text x="12" y="${staffTop+4*G+8}" class="clef" style="font-size:46px">𝄞</text>`;
+
+    let x=lead;
+    const labelY = staffTop + 4*G + below + 15;
+    chunk.forEach(col=>{
+      body += drawColumn(col, x, staffTop, G, offset);
+      if(col.label) body+=`<text x="${x}" y="${labelY}" class="note-label">${col.label}</text>`;
+      x += colW;
+    });
+    y = staffTop + 4*G + below + labelGap + 12;
+  });
+
+  return `<svg viewBox="0 0 ${width} ${y}" class="staff-svg" xmlns="http://www.w3.org/2000/svg">${body}</svg>`;
+}
+
+function buildColumns(){
+  const cols=[];
+  if(els.referenceToggle.checked) cols.push({notes:[{midi:REFERENCE_MIDI,status:'reference'}], label:'repère'});
+  if(!validated){
+    if(state.mode==='chord'){
+      cols.push({notes:[{status:'pending'}], label:'accord ?'});
+    } else if(state.mode==='bass'){
+      currentSequence.forEach(m=> cols.push({notes:[{midi:m,status:'toread'}]}));
+    } else {
+      currentSequence.forEach(()=> cols.push({notes:[{status:'pending'}]}));
+    }
+  } else {
+    if(state.mode==='chord'){
+      const notes=currentSequence.map(m=>({midi:m, status: userAnswer.includes(m)?'correct':'incorrect'}));
+      cols.push({notes, label:'accord'});
+    } else {
+      currentSequence.forEach((m,i)=>{
+        const ok=userAnswer[i]===m;
+        cols.push({notes:[{midi:m,status: ok?'correct':'incorrect'}], label: ok?'✓':`✗ ${midiToFR(userAnswer[i])}`});
+      });
+    }
+  }
+  return cols;
+}
+
+function renderStaff(){
+  els.staffContainer.innerHTML = buildStaffSVG(buildColumns(), clef());
+  if(validated){
+    els.staffCaption.textContent = 'Notes correctes en vert, erreurs en rouge (la note jouée est indiquée).';
+  } else if(state.mode==='bass'){
+    els.staffCaption.textContent = 'Lis les notes ci-dessus et joue-les sur le clavier.';
+  } else if(state.mode==='chord'){
+    els.staffCaption.textContent = 'L\'accord se révèle une fois ta réponse validée.';
+  } else {
+    els.staffCaption.textContent = 'La portée révèle les notes une fois ta réponse validée.';
+  }
+}
+
+// ---------------------------------------------------------------
+// Score
+// ---------------------------------------------------------------
+function updateScoreDisplay(){
+  els.scoreValue.textContent = `${correctNotes} / ${totalNotes} notes`;
+  els.perfectValue.textContent = `Exercices parfaits : ${perfectDictations} / ${totalDictations}`;
+}
+els.scoreReset.addEventListener('click',()=>{
+  totalNotes=correctNotes=totalDictations=perfectDictations=0; updateScoreDisplay();
+});
+
+// ---------------------------------------------------------------
+// Génération
+// ---------------------------------------------------------------
+function generateSequence(){
+  const {min,max}=RANGES[clef()][els.range.value];
+  const allowAcc=els.accidentals.checked;
+  const pool=[];
+  for(let m=min;m<=max;m++){ if(allowAcc || !isSharpPc(m%12)) pool.push(m); }
+  if(state.mode==='chord'){
+    // 3 notes distinctes
+    const set=new Set();
+    while(set.size<3 && set.size<pool.length){ set.add(pool[Math.floor(Math.random()*pool.length)]); }
+    return [...set].sort((a,b)=>a-b);
+  }
+  const n=requiredCount(), seq=[];
+  for(let i=0;i<n;i++) seq.push(pool[Math.floor(Math.random()*pool.length)]);
+  return seq;
+}
+
+// ---------------------------------------------------------------
+// Boutons dynamiques selon le mode
+// ---------------------------------------------------------------
+function updateActionButtons(){
+  if(state.mode==='chord'){ els.playBtn.textContent='▶ Jouer l\'accord'; els.newBtn.textContent='Nouvel accord →'; }
+  else if(state.mode==='bass'){ els.playBtn.textContent='🔊 Écouter'; els.newBtn.textContent='Nouvelle lecture →'; }
+  else { els.playBtn.textContent='▶ Jouer la dictée'; els.newBtn.textContent='Nouvelle dictée →'; }
+  // en lecture, le son ne s'active qu'après validation
+  els.playBtn.disabled = (state.mode==='bass' && !validated);
+  // indice de réponse
+  if(state.mode==='chord'){ els.answerHint.hidden=false; els.answerHint.textContent='Ordre libre — reclique une touche pour la désélectionner.'; }
+  else { els.answerHint.hidden=true; }
+}
+
+// ---------------------------------------------------------------
+// Reset / nouvel exercice
+// ---------------------------------------------------------------
+function resetExercise(generateNew){
+  if(generateNew) currentSequence=generateSequence();
+  userAnswer=[]; validated=false;
+  renderAnswerSlots(); renderKeyboardState(); renderStaff();
+  els.feedbackCard.hidden=true;
+  updateActionButtons(); updateValidateButton();
+}
+
+function applyMode(){
+  renderHowto();
+  populateSelectors();
+  buildKeyboard();
+  resetExercise(true);
+}
+
+// ---------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------
+els.validateBtn.addEventListener('click',()=>{
+  if(els.validateBtn.disabled) return;
+  validated=true;
+  els.feedbackList.innerHTML='';
+
+  if(state.mode==='chord'){
+    const targets=currentSequence;
+    const found=targets.filter(m=>userAnswer.includes(m));
+    const extras=userAnswer.filter(m=>!targets.includes(m));
+    const correctCount=found.length;
+    totalNotes+=3; correctNotes+=correctCount; totalDictations+=1;
+    const perfect = correctCount===3 && extras.length===0;
+    if(perfect) perfectDictations+=1;
+
+    targets.forEach(m=>{
+      const li=document.createElement('li');
+      if(userAnswer.includes(m)) li.innerHTML=`<span class="feedback-icon feedback-correct">✓</span> <strong>${midiToFR(m)}</strong> — trouvée`;
+      else li.innerHTML=`<span class="feedback-icon feedback-incorrect">✗</span> <strong>${midiToFR(m)}</strong> — manquée`;
+      els.feedbackList.appendChild(li);
+    });
+    if(extras.length){
+      const li=document.createElement('li');
+      li.innerHTML=`<span class="feedback-icon feedback-incorrect">✗</span> En trop : ${extras.map(midiToFR).join(', ')}`;
+      els.feedbackList.appendChild(li);
+    }
+    els.feedbackSummary.textContent = perfect
+      ? 'Accord parfait ! Les 3 notes sont exactes.'
+      : `${correctCount} / 3 notes correctes${extras.length?`, ${extras.length} en trop`:''}.`;
+  } else {
+    const results=currentSequence.map((m,i)=>({midi:m, userMidi:userAnswer[i], correct:userAnswer[i]===m}));
+    const correctCount=results.filter(r=>r.correct).length;
+    totalNotes+=results.length; correctNotes+=correctCount; totalDictations+=1;
+    if(correctCount===results.length) perfectDictations+=1;
+    results.forEach((r,i)=>{
+      const li=document.createElement('li');
+      if(r.correct) li.innerHTML=`<span class="feedback-icon feedback-correct">✓</span> Note ${i+1} : <strong>${midiToFR(r.midi)}</strong>`;
+      else li.innerHTML=`<span class="feedback-icon feedback-incorrect">✗</span> Note ${i+1} : c'était <strong>${midiToFR(r.midi)}</strong> — tu as répondu ${midiToFR(r.userMidi)}`;
+      els.feedbackList.appendChild(li);
+    });
+    els.feedbackSummary.textContent = correctCount===results.length
+      ? `Parfait ! ${correctCount} / ${results.length} notes correctes.`
+      : `${correctCount} / ${results.length} notes correctes.`;
+  }
+
+  updateScoreDisplay();
+  renderStaff();
+  els.feedbackCard.hidden=false;
+  updateActionButtons();   // active « Écouter » en mode lecture
+  updateValidateButton();
+});
+
+// ---------------------------------------------------------------
+// Lecture / navigation
+// ---------------------------------------------------------------
+els.playBtn.addEventListener('click',()=>{
+  if(els.playBtn.disabled) return;
+  if(currentSequence.length===0) currentSequence=generateSequence();
+  playCurrent();
+});
+els.refBtn.addEventListener('click',()=> playSingle(REFERENCE_MIDI,0.9));
+els.newBtn.addEventListener('click',()=>{
+  resetExercise(true);
+  if(state.mode!=='bass') playCurrent();  // en lecture on ne joue pas : on lit
+});
+
+// ---------------------------------------------------------------
+// Réglages & mode
+// ---------------------------------------------------------------
+els.modeSwitch.addEventListener('click', e=>{
+  const pill=e.target.closest('.mode-pill'); if(!pill) return;
+  els.modeSwitch.querySelectorAll('.mode-pill').forEach(p=>p.classList.remove('active'));
+  pill.classList.add('active');
+  state.mode=pill.dataset.mode;
+  applyMode();
+});
+els.range.addEventListener('change',()=>{ buildKeyboard(); resetExercise(true); });
+els.numNotes.addEventListener('change',()=> resetExercise(true));
+els.accidentals.addEventListener('change',()=> resetExercise(true));
+els.referenceToggle.addEventListener('change',()=> renderStaff());
+els.showLabels.addEventListener('change',()=> els.keyboard.classList.toggle('show-labels', els.showLabels.checked));
+
+// ---------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------
+applyMode();
+updateScoreDisplay();
+initAudio();
+</script>
+</body>
+</html>
