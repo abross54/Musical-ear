@@ -393,7 +393,8 @@ function staffK(midi, offset){ return (offset - diatonicStep(midi)) / 2; }
 // ---------------------------------------------------------------
 // Audio (piano échantillonné + repli synthé)
 // ---------------------------------------------------------------
-let sampler=null, fallbackSynth=null, audioReady=false, audioFailed=false;
+let sampler=null, fallbackSynth=null, samplerLoaded=false, audioFailed=false, loadTimer=null, unlocked=false, silentEl=null;
+
 function ensureFallbackSynth(){
   if(!fallbackSynth){
     fallbackSynth = new Tone.PolySynth(Tone.Synth,{
@@ -401,36 +402,86 @@ function ensureFallbackSynth(){
     }).toDestination();
   }
 }
-function setAudioStatus(loading,failed){
+function setAudioStatus(state, msg){
   const el=document.getElementById('audioStatus');
-  if(loading){ el.textContent='🎹 Chargement du son de piano…'; el.hidden=false; els.keyboard.classList.add('loading'); }
-  else if(failed){ el.textContent='🎹 Son simplifié (échantillons indisponibles)'; el.hidden=false; els.keyboard.classList.remove('loading'); }
-  else { el.hidden=true; els.keyboard.classList.remove('loading'); }
+  if(state==='loading'){ el.textContent='🎹 Chargement du son de piano…'; el.hidden=false; }
+  else if(state==='fallback'){ el.textContent=msg||'🎹 Son simplifié (échantillons indisponibles)'; el.hidden=false; }
+  else if(state==='warn'){ el.textContent=msg; el.hidden=false; }
+  else { el.hidden=true; }
+  // le clavier reste toujours utilisable (un son de secours est joué si besoin)
+  els.keyboard.classList.remove('loading');
+}
+
+// iPhone : le commutateur silencieux coupe le son Web Audio, sauf si un élément <audio> est en lecture.
+function makeSilentWavUrl(){
+  const sr=8000, n=sr/4, buf=new ArrayBuffer(44+n*2), v=new DataView(buf);
+  const w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
+  w(0,'RIFF'); v.setUint32(4,36+n*2,true); w(8,'WAVE'); w(12,'fmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  w(36,'data'); v.setUint32(40,n*2,true);
+  return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
+}
+async function unlockAudio(){
+  try{
+    if(!silentEl){
+      silentEl=document.createElement('audio');
+      silentEl.src=makeSilentWavUrl();
+      silentEl.loop=true; silentEl.setAttribute('playsinline',''); silentEl.volume=0.01;
+    }
+    if(silentEl.paused) await silentEl.play().catch(()=>{});
+  }catch(e){}
+  try{
+    await Tone.start();
+    if(Tone.context.state!=='running') await Tone.context.resume();
+    Tone.Destination.mute=false; Tone.Destination.volume.value=0;
+  }catch(e){}
+  if(Tone.context.state!=='running'){
+    setAudioStatus('warn','🔇 Son bloqué : touche l\'écran à nouveau, et vérifie que le mode silencieux est désactivé.');
+  }
+}
+
+function useFallback(msg){
+  audioFailed=true; ensureFallbackSynth();
+  setAudioStatus('fallback',msg);
 }
 function initAudio(){
-  sampler = new Tone.Sampler({
-    urls:{
-      'A0':'A0.mp3','C1':'C1.mp3','D#1':'Ds1.mp3','F#1':'Fs1.mp3','A1':'A1.mp3',
-      'C2':'C2.mp3','D#2':'Ds2.mp3','F#2':'Fs2.mp3','A2':'A2.mp3',
-      'C3':'C3.mp3','D#3':'Ds3.mp3','F#3':'Fs3.mp3','A3':'A3.mp3',
-      'C4':'C4.mp3','D#4':'Ds4.mp3','F#4':'Fs4.mp3','A4':'A4.mp3',
-      'C5':'C5.mp3','D#5':'Ds5.mp3','F#5':'Fs5.mp3','A5':'A5.mp3',
-      'C6':'C6.mp3','D#6':'Ds6.mp3','F#6':'Fs6.mp3','A6':'A6.mp3',
-      'C7':'C7.mp3','D#7':'Ds7.mp3','F#7':'Fs7.mp3','A7':'A7.mp3','C8':'C8.mp3'
-    },
-    release:1, baseUrl:'https://tonejs.github.io/audio/salamander/',
-    onload:()=>{ audioReady=true; setAudioStatus(false,false); },
-    onerror:()=>{ audioFailed=true; audioReady=true; ensureFallbackSynth(); setAudioStatus(false,true); }
-  }).toDestination();
+  setAudioStatus('loading');
+  try{
+    sampler = new Tone.Sampler({
+      urls:{
+        'A0':'A0.mp3','C1':'C1.mp3','D#1':'Ds1.mp3','F#1':'Fs1.mp3','A1':'A1.mp3',
+        'C2':'C2.mp3','D#2':'Ds2.mp3','F#2':'Fs2.mp3','A2':'A2.mp3',
+        'C3':'C3.mp3','D#3':'Ds3.mp3','F#3':'Fs3.mp3','A3':'A3.mp3',
+        'C4':'C4.mp3','D#4':'Ds4.mp3','F#4':'Fs4.mp3','A4':'A4.mp3',
+        'C5':'C5.mp3','D#5':'Ds5.mp3','F#5':'Fs5.mp3','A5':'A5.mp3',
+        'C6':'C6.mp3','D#6':'Ds6.mp3','F#6':'Fs6.mp3','A6':'A6.mp3',
+        'C7':'C7.mp3','D#7':'Ds7.mp3','F#7':'Fs7.mp3','A7':'A7.mp3','C8':'C8.mp3'
+      },
+      release:1, baseUrl:'https://tonejs.github.io/audio/salamander/',
+      onload:()=>{ samplerLoaded=true; clearTimeout(loadTimer); if(!audioFailed) setAudioStatus('ready'); },
+      onerror:()=>{ clearTimeout(loadTimer); useFallback(); }
+    }).toDestination();
+  }catch(e){ useFallback(); return; }
+  // si les échantillons mettent trop de temps, on bascule sur le son de secours (le piano reprend s'il finit par charger)
+  loadTimer=setTimeout(()=>{ if(!samplerLoaded) useFallback('🎹 Son simplifié (le piano charge encore…)'); }, 10000);
+  Tone.loaded().then(()=>{ samplerLoaded=true; clearTimeout(loadTimer); audioFailed=false; setAudioStatus('ready'); }).catch(()=>{});
 }
-function getInstrument(){ if(sampler && !audioFailed) return sampler; ensureFallbackSynth(); return fallbackSynth; }
+function getInstrument(){
+  if(sampler && samplerLoaded) return sampler;
+  ensureFallbackSynth();
+  return fallbackSynth;
+}
 
-async function playSingle(midi,dur=0.7){ await Tone.start(); getInstrument().triggerAttackRelease(midiToTone(midi),dur); }
+async function playSingle(midi,dur=0.7){
+  await unlockAudio();
+  getInstrument().triggerAttackRelease(midiToTone(midi),dur);
+}
 
 async function playCurrent(){
-  await Tone.start();
+  await unlockAudio();
   const inst=getInstrument();
-  let t=Tone.now();
+  let t=Tone.now()+0.05;
   const refPause=0.6;
   if(els.referenceToggle.checked){
     inst.triggerAttackRelease(midiToTone(REFERENCE_MIDI),1.0,t);
