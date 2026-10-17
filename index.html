@@ -313,6 +313,7 @@ footer{color:var(--ink-dim); font-size:11.5px; text-align:center; margin-top:28p
   <section class="play-row">
     <button id="playBtn" class="btn primary">▶ Jouer</button>
     <button id="refBtn" class="btn ghost">🎵 Repère (Do4)</button>
+    <button id="testBtn" class="btn ghost">🔊 Tester le son</button>
     <span id="audioStatus" class="audio-status">🎹 Chargement du son de piano…</span>
     <div class="score">
       Score
@@ -422,23 +423,28 @@ function makeSilentWavUrl(){
   w(36,'data'); v.setUint32(40,n*2,true);
   return URL.createObjectURL(new Blob([buf],{type:'audio/wav'}));
 }
-async function unlockAudio(){
+function unlockAudio(){
+  // iOS exige que le déblocage audio soit lancé SYNCHRONEMENT dans le geste (tap) : aucun await avant.
+  try{ if('audioSession' in navigator) navigator.audioSession.type='playback'; }catch(e){}
+  let startP;
+  try{ startP = Tone.start(); }catch(e){ startP = Promise.resolve(); }
   try{
     if(!silentEl){
       silentEl=document.createElement('audio');
       silentEl.src=makeSilentWavUrl();
       silentEl.loop=true; silentEl.setAttribute('playsinline',''); silentEl.volume=0.01;
     }
-    if(silentEl.paused) await silentEl.play().catch(()=>{});
+    if(silentEl.paused){ const pr=silentEl.play(); if(pr && pr.catch) pr.catch(()=>{}); }
   }catch(e){}
-  try{
-    await Tone.start();
-    if(Tone.context.state!=='running') await Tone.context.resume();
-    Tone.Destination.mute=false; Tone.Destination.volume.value=0;
-  }catch(e){}
-  if(Tone.context.state!=='running'){
-    setAudioStatus('warn','🔇 Son bloqué : touche l\'écran à nouveau, et vérifie que le mode silencieux est désactivé.');
-  }
+  return Promise.resolve(startP)
+    .then(()=>{ if(Tone.context.state!=='running') return Tone.context.resume(); })
+    .then(()=>{
+      Tone.Destination.mute=false; Tone.Destination.volume.value=0;
+      if(Tone.context.state!=='running'){
+        setAudioStatus('warn','🔇 Son bloqué : touche l\'écran à nouveau, et vérifie que le mode silencieux est désactivé.');
+      }
+    })
+    .catch(()=>{});
 }
 
 function useFallback(msg){
@@ -512,6 +518,7 @@ const els = {
   showLabels:document.getElementById('showLabels'),
   playBtn:document.getElementById('playBtn'),
   refBtn:document.getElementById('refBtn'),
+  testBtn:document.getElementById('testBtn'),
   validateBtn:document.getElementById('validateBtn'),
   newBtn:document.getElementById('newBtn'),
   undoBtn:document.getElementById('undoBtn'),
@@ -888,6 +895,26 @@ els.playBtn.addEventListener('click',()=>{
   if(els.playBtn.disabled) return;
   if(currentSequence.length===0) currentSequence=generateSequence();
   playCurrent();
+});
+els.testBtn.addEventListener('click',()=>{
+  const info=[];
+  let beep=null;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    const ctx=new AC();
+    const pr=ctx.resume();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    g.gain.value=0.25; o.frequency.value=440; o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime+0.5);
+    beep=Promise.resolve(pr).then(()=>info.push('bip direct : '+ctx.state));
+  }catch(e){ info.push('bip direct : erreur ('+e.message+')'); beep=Promise.resolve(); }
+  const un=unlockAudio();
+  Promise.all([beep,un]).then(()=>{
+    info.push('Tone : '+Tone.context.state);
+    info.push('piano : '+(samplerLoaded?'chargé':'pas chargé'));
+    if(samplerLoaded || fallbackSynth){ try{ getInstrument().triggerAttackRelease('C4',0.8,Tone.now()+0.7); }catch(e){ info.push('erreur note : '+e.message); } }
+    setAudioStatus('warn','🔊 '+info.join(' · '));
+  });
 });
 els.refBtn.addEventListener('click',()=> playSingle(REFERENCE_MIDI,0.9));
 els.newBtn.addEventListener('click',()=>{
